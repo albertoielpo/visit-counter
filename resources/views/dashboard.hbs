@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Visit Counter Dashboard</title>
+        <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+        <link rel="stylesheet" href="/assets/css/dashboard.css" />
+    </head>
+    <body>
+
+        <!-- Header -->
+        <header class="header">
+            <h1>Visit Counter</h1>
+            <div class="header-controls">
+                <form method="GET" action="/dashboard" id="host-form">
+                    <input type="hidden" name="period" value="{{period}}" />
+                    <select name="host" onchange="document.getElementById('host-form').submit()">
+                        <option value="">All hosts</option>
+                        {{#each hosts}}
+                        <option value="{{this}}" {{#if (eq this ../selectedHost)}}selected{{/if}}>{{this}}</option>
+                        {{/each}}
+                    </select>
+                </form>
+                <a href="/dashboard?host={{selectedHost}}&amp;period={{period}}" class="btn-refresh">↻ Refresh</a>
+            </div>
+        </header>
+
+        <main class="main">
+
+            {{!-- Period selector — host only --}}
+            {{#if hasHost}}
+            <div class="period-bar">
+                <a href="/dashboard?host={{selectedHost}}&amp;period=today"      class="{{#if periodToday}}active{{/if}}">Today</a>
+                <a href="/dashboard?host={{selectedHost}}&amp;period=yesterday"  class="{{#if periodYesterday}}active{{/if}}">Yesterday</a>
+                <a href="/dashboard?host={{selectedHost}}&amp;period=this-month" class="{{#if periodThisMonth}}active{{/if}}">This Month</a>
+                <a href="/dashboard?host={{selectedHost}}&amp;period=last-month" class="{{#if periodLastMonth}}active{{/if}}">Last Month</a>
+                <span class="period-divider"></span>
+                <button class="{{#if periodCustom}}active{{/if}}"     onclick="showCustom('month',this)">Month</button>
+                <button class="{{#if periodCustomDay}}active{{/if}}"  onclick="showCustom('day',this)">Day</button>
+                <button class="{{#if periodCustomHour}}active{{/if}}" onclick="showCustom('hour',this)">Hour</button>
+                <input id="custom-month" type="month"         class="period-input" {{#unless periodCustom}}style="display:none"{{/unless}}     {{#if periodCustom}}value="{{customMonth}}"{{/if}}     onchange="location.href='/dashboard?host={{selectedHost}}&amp;period='+this.value" />
+                <input id="custom-day"   type="date"          class="period-input" {{#unless periodCustomDay}}style="display:none"{{/unless}}   {{#if periodCustomDay}}value="{{customDay}}"{{/if}}     onchange="location.href='/dashboard?host={{selectedHost}}&amp;period='+this.value" />
+                <input id="custom-hour"  type="datetime-local" class="period-input" {{#unless periodCustomHour}}style="display:none"{{/unless}} {{#if periodCustomHour}}value="{{customHour}}:00"{{/if}} onchange="location.href='/dashboard?host={{selectedHost}}&amp;period='+this.value.slice(0,13)" />
+            </div>
+            {{/if}}
+
+            {{!-- All-time cards --}}
+            <div class="cards-group-label">All time</div>
+            <div class="cards">
+                <div class="card">
+                    <div class="card-label">Total Hits</div>
+                    <div class="card-value">{{totalRequests}}</div>
+                </div>
+                {{#if hasHost}}
+                <div class="card">
+                    <div class="card-label">Unique IPs</div>
+                    <div class="card-value blue">{{uniqueAllTime}}</div>
+                </div>
+                {{/if}}
+            </div>
+
+            {{!-- Period cards --}}
+            <div class="cards-group-label">{{periodLabel}}</div>
+            <div class="cards">
+                <div class="card">
+                    <div class="card-label">Hits</div>
+                    <div class="card-value green">{{visitsPeriod}}</div>
+                </div>
+                {{#if hasHost}}
+                <div class="card">
+                    <div class="card-label">Unique IPs</div>
+                    <div class="card-value blue">{{uniquePeriod}}</div>
+                </div>
+                {{/if}}
+                <div class="card">
+                    <div class="card-label">Errors</div>
+                    <div class="card-value red">{{errorsPeriod}}</div>
+                </div>
+            </div>
+
+            {{#if hasHost}}
+
+            {{!-- Top Paths — host only --}}
+            <div class="panel">
+                <div class="panel-title">Top Paths — {{selectedHost}}</div>
+                {{#if topPaths.length}}
+                {{#each topPaths}}
+                <div class="bar-row{{#if (gt @index 14)}} path-hidden{{/if}}">
+                    <span class="bar-label wide" title="{{path}}">{{path}}</span>
+                    <div class="bar-track">
+                        <div class="bar-fill accent" style="width:{{pct}}%"></div>
+                    </div>
+                    <span class="bar-count">{{val}}</span>
+                </div>
+                {{/each}}
+                <button class="btn-show-more" onclick="this.closest('.panel').querySelectorAll('.path-hidden').forEach(function(el){el.classList.remove('path-hidden');}); this.remove();">Show more</button>
+                {{else}}
+                <p class="empty">No data</p>
+                {{/if}}
+            </div>
+
+            {{!-- Status codes + Errors by status — host only --}}
+            <div class="grid-2">
+                <div class="panel">
+                    <div class="panel-title">Status Code Distribution — {{selectedHost}}</div>
+                    {{#if statusCodes.length}}
+                    {{#each statusCodes}}
+                    <div class="bar-row">
+                        <span class="bar-label">
+                            <span class="badge {{badgeClass}}">{{code}}</span>
+                        </span>
+                        <div class="bar-track">
+                            <div class="bar-fill {{barClass}}" style="width:{{pct}}%"></div>
+                        </div>
+                        <span class="bar-count">{{val}}</span>
+                    </div>
+                    {{/each}}
+                    {{else}}
+                    <p class="empty">No data</p>
+                    {{/if}}
+                </div>
+
+                <div class="panel">
+                    <div class="panel-title">Errors by Status — {{selectedHost}}</div>
+                    {{#if errorsByStatus.length}}
+                    {{#each errorsByStatus}}
+                    <div class="bar-row">
+                        <span class="bar-label">
+                            <span class="badge {{badgeClass}}">{{code}}</span>
+                        </span>
+                        <div class="bar-track">
+                            <div class="bar-fill red" style="width:{{pct}}%"></div>
+                        </div>
+                        <span class="bar-count">{{val}}</span>
+                    </div>
+                    {{/each}}
+                    {{else}}
+                    <p class="empty">No errors recorded</p>
+                    {{/if}}
+                </div>
+            </div>
+
+            {{else}}
+
+            {{!-- HTTP Methods — no host only --}}
+            <div class="panel">
+                <div class="panel-title">HTTP Methods (global)</div>
+                {{#if methods.length}}
+                {{#each methods}}
+                <div class="bar-row">
+                    <span class="bar-label">{{key}}</span>
+                    <div class="bar-track">
+                        <div class="bar-fill green" style="width:{{pct}}%"></div>
+                    </div>
+                    <span class="bar-count">{{val}}</span>
+                </div>
+                {{/each}}
+                {{else}}
+                <p class="empty">No data</p>
+                {{/if}}
+            </div>
+
+            {{!-- All Hosts table — no host only --}}
+            <div class="panel">
+                <div class="panel-title">All Hosts</div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Host</th>
+                            <th class="num">Hits Today</th>
+                            <th class="num">Errors Today</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#if allHosts.length}}
+                        {{#each allHosts}}
+                        <tr>
+                            <td>{{host}}</td>
+                            <td class="num">{{visitsToday}}</td>
+                            <td class="num">{{errorsToday}}</td>
+                        </tr>
+                        {{/each}}
+                        {{else}}
+                        <tr><td colspan="3" class="empty">No data</td></tr>
+                        {{/if}}
+                    </tbody>
+                </table>
+            </div>
+
+            {{/if}}
+
+        </main>
+
+        <footer class="footer">
+            <div>Last update: <time>{{lastUpdate}}</time></div>
+            <div>v{{version}}</div>
+        </footer>
+        <script>
+            function showCustom(type, btn) {
+                document.querySelectorAll('.period-input').forEach(function(el) { el.style.display = 'none'; });
+                document.querySelectorAll('.period-bar button').forEach(function(el) { el.classList.remove('active'); });
+                document.getElementById('custom-' + type).style.display = '';
+                btn.classList.add('active');
+            }
+        </script>
+    </body>
+</html>

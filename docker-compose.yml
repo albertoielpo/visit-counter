@@ -1,0 +1,36 @@
+services:
+    visit-counter:
+        container_name: visit-counter
+        build: .
+        environment:
+            - REDIS_URL=redis://visit-counter-redis:6379
+            # access-tail.job
+            - TAIL_LOG_FILE=/logs/access.log
+            # - TAIL_START_TIME=2026-02-24T00:00:00.000Z
+            # - TAIL_OFF=true
+            - TAIL_ALLOWED_HOSTS=myhost.com,myhost.net
+            - TAIL_PRINT_ENTRIES=false
+            # backend
+            - APP_ENV=docker
+            - LOG_LEVEL=notice
+        ports:
+            - "3000:3000"
+        networks:
+            - dockernet
+        depends_on:
+            - visit-counter-redis
+        volumes:
+            - ${NGINX_ACCESS_LOG:-./tmp/access.log}:/logs/access.log:ro
+    visit-counter-redis:
+        container_name: visit-counter-redis
+        image: redis:8
+        ports:
+            - "6379:6379"
+        networks:
+            - dockernet
+        volumes:
+            - ${REDIS_DATA:-/var/docker_volumes/visit-counter-redis}:/data
+
+networks:
+    dockernet:
+        driver: bridge

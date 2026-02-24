@@ -1,0 +1,23 @@
+@baseUrl = http://localhost:3000
+###
+# Unique IPs all-time (per host)
+GET {{baseUrl}}/unique/all-time?host=ielpo.net
+Accept: application/json
+
+
+###
+# Unique IPs monthly
+GET {{baseUrl}}/unique/monthly?month=2026-01&host=ielpo.net
+Accept: application/json
+
+
+###
+# Unique IPs daily
+GET {{baseUrl}}/unique/daily?date=2026-01-01&host=ielpo.net
+Accept: application/json
+
+
+###
+# Unique IPs hourly
+GET {{baseUrl}}/unique/hourly?hour=2026-01-01T00&host=ielpo.net
+Accept: application/json

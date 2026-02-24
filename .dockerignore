@@ -1,0 +1,10 @@
+docs
+node_modules
+dist
+*.log
+.git
+.vscode
+.npmrc
+.prettierrc
+README.md
+nginx-log-parser.js

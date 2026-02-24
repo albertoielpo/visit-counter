@@ -1,0 +1,17 @@
+@baseUrl = http://localhost:3000
+###
+# Visit monthly
+GET {{baseUrl}}/visits/monthly?month=2026-01
+Accept: application/json
+
+
+###
+# Visit daily
+GET {{baseUrl}}/visits/daily?date=2026-01-01
+Accept: application/json
+
+
+###
+# Visit hourly
+GET {{baseUrl}}/visits/hourly?hour=2026-01-01T00
+Accept: application/json

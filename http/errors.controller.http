@@ -1,0 +1,23 @@
+@baseUrl = http://localhost:3000
+###
+# Errors monthly
+GET {{baseUrl}}/errors/monthly?month=2026-01
+Accept: application/json
+
+
+###
+# Errors daily
+GET {{baseUrl}}/errors/daily?date=2026-01-01
+Accept: application/json
+
+
+###
+# Errors hourly
+GET {{baseUrl}}/errors/hourly?hour=2026-01-01T00
+Accept: application/json
+
+
+###
+# Errors by status (per host)
+GET {{baseUrl}}/errors/by-status?host=ielpo.net
+Accept: application/json

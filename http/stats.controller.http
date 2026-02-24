@@ -1,0 +1,23 @@
+@baseUrl = http://localhost:3000
+###
+# Stats total requests (all hosts)
+GET {{baseUrl}}/stats/total-requests
+Accept: application/json
+
+
+###
+# Stats methods (global)
+GET {{baseUrl}}/stats/methods
+Accept: application/json
+
+
+###
+# Stats status by host
+GET {{baseUrl}}/stats/status?host=ielpo.net
+Accept: application/json
+
+
+###
+# Stats top paths by host
+GET {{baseUrl}}/stats/top-paths?host=ielpo.net
+Accept: application/json
