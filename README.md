@@ -197,10 +197,11 @@ Unique IPs are tracked only for requests that received a valid HTTP response (1x
 
 | Key                      | Type       | Description                                       |
 | ------------------------ | ---------- | ------------------------------------------------- |
-| `stats:total_requests`   | Hash       | All-time request count per host                   |
-| `stats:status:{host}`    | Hash       | All-time request count per status code for a host |
-| `stats:methods`          | Hash       | All-time request count per HTTP method (global)   |
-| `stats:top_paths:{host}` | Sorted Set | Request count per path for a host                 |
+| `stats:total_requests`   | Hash       | All-time request count per host                    |
+| `stats:status:{host}`    | Hash       | All-time request count per status code for a host  |
+| `stats:methods`          | Hash       | All-time request count per HTTP method (global)    |
+| `stats:top_paths:{host}` | Sorted Set | Request count per path for a host                  |
+| `stats:last_update`      | String     | ISO 8601 timestamp of the last processed log entry |
 
 ---
 
@@ -287,6 +288,9 @@ HGETALL errors:by_status:example.com
 # All-time requests per host
 HGETALL stats:total_requests
 
+# All-time requests for a specific host
+HGET stats:total_requests example.com
+
 # Status code distribution for a host
 HGETALL stats:status:example.com
 
@@ -294,92 +298,11 @@ HGETALL stats:status:example.com
 HGETALL stats:methods
 
 # Top 10 most requested paths for a host
-ZRANGE stats:top_paths:example.com 0 9 BYSCORE REV WITHSCORES
-```
-
----
-
-## Website dashboard queries
-
-The following queries cover the typical widgets needed to build a stats website for a given host (replace `example.com` and dates accordingly).
-
-### Overview cards
-
-```bash
-# Total all-time requests for a host
-HGET stats:total_requests example.com
-
-# Total all-time unique visitors for a host
-SCARD unique_ips:example.com
-
-# Visits this month
-HGET visits:monthly:2026-02 example.com
-
-# Unique visitors this month
-SCARD unique_ips:monthly:2026-02:example.com
-
-# Errors this month
-HGET errors:monthly:2026-02 example.com
-
-# Visits today
-HGET visits:daily:2026-02-21 example.com
-
-# Unique visitors today
-SCARD unique_ips:daily:2026-02-21:example.com
-```
-
-### Daily visits chart (line/bar chart over a month)
-
-Fetch all daily keys for a month and extract the value for the host:
-
-```bash
-# All visits per day in December 2025 for a host
-# Run for each day: HGET visits:daily:{YYYY-MM-DD} example.com
-HGET visits:daily:2025-12-01 example.com
-HGET visits:daily:2025-12-02 example.com
-# ... repeat for each day
-```
-
-### Top pages table
-
-```bash
-# Top 10 most visited paths (all-time)
 ZRANGE stats:top_paths:example.com 0 9 REV WITHSCORES
 
-# Top 20 most visited paths
+# Top 20 most requested paths for a host
 ZRANGE stats:top_paths:example.com 0 19 REV WITHSCORES
-```
 
-### Status code breakdown (pie/donut chart)
-
-```bash
-# All status codes with counts for a host
-HGETALL stats:status:example.com
-```
-
-### Error breakdown by status code
-
-```bash
-# Error counts grouped by status code (all-time)
-HGETALL errors:by_status:example.com
-```
-
-### HTTP methods distribution (bar chart)
-
-```bash
-# Global HTTP method breakdown
-HGETALL stats:methods
-```
-
-### Multi-host comparison
-
-```bash
-# Visits for all tracked hosts on a given day
-HGETALL visits:daily:2026-02-21
-
-# Visits for all tracked hosts in a given month
-HGETALL visits:monthly:2026-02
-
-# Total all-time requests across all hosts
-HGETALL stats:total_requests
+# Timestamp of the last processed log entry
+GET stats:last_update
 ```
