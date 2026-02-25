@@ -2,6 +2,7 @@
 
 /**
  * Triggers a remote Jenkins job via the Jenkins REST API.
+ * Usage ./jenkins-release (build | deploy)
  *
  * Authenticates using Basic Auth, fetches a CSRF crumb,
  * and sends a POST request to start the build.
@@ -10,80 +11,88 @@
  * @requires JOB_PATH - Path to the job (e.g. "folder/job-name")
  * @requires JENKINS_USER - Jenkins username
  * @requires JENKINS_TOKEN - Jenkins API token
- * 
+ *
  * @author Alberto Ielpo <alberto.ielpo@gmail.com>
  */
 
 const jenkinsUrl = process.env.JENKINS_URL;
-const jobPath = process.env.JOB_PATH;
+const jobPath =
+    process.argv[2] === "build"
+        ? process.env.JOB_BUILD_PATH
+        : process.env.JOB_DEPLOY_PATH;
 const username = process.env.JENKINS_USER;
 const token = process.env.JENKINS_TOKEN;
 
-if(!jenkinsUrl || !jobPath || !username || !token) {
-  console.log("Missing required env vars. Set JENKINS_URL, JOB_PATH, USERNAME, TOKEN in .env or environment.");
-  process.exit(1);
+if (!jenkinsUrl || !jobPath || !username || !token) {
+    console.log(
+        "Missing required env vars. Set JENKINS_URL, JOB_PATH, USERNAME, TOKEN in .env or environment."
+    );
+    process.exit(1);
 }
 
-const authHeader = 'Basic ' + Buffer.from(`${username}:${token}`).toString('base64');
-let cookieJar = '';
+const authHeader =
+    "Basic " + Buffer.from(`${username}:${token}`).toString("base64");
+let cookieJar = "";
 
 async function getCrumb() {
-  const response = await fetch(`${jenkinsUrl}/crumbIssuer/api/json`, {
-    headers: {
-      'Authorization': authHeader
+    const response = await fetch(`${jenkinsUrl}/crumbIssuer/api/json`, {
+        headers: {
+            Authorization: authHeader
+        }
+    });
+
+    // Extract cookies
+    const setCookie = response.headers.get("set-cookie");
+    if (setCookie) {
+        cookieJar = setCookie.split(";")[0];
     }
-  });
 
-  // Extract cookies
-  const setCookie = response.headers.get('set-cookie');
-  if (setCookie) {
-    cookieJar = setCookie.split(';')[0];
-  }
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to get crumb (${response.status}): ${text}`);
+    }
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Failed to get crumb (${response.status}): ${text}`);
-  }
-
-  const data = await response.json();
-  return data.crumb;
+    const data = await response.json();
+    return data.crumb;
 }
 
 async function triggerBuild(params = null) {
-  const crumb = await getCrumb();
-  console.log('Crumb:', crumb);
-  console.log('Cookie:', cookieJar);
+    const crumb = await getCrumb();
+    console.log("Crumb:", crumb);
+    console.log("Cookie:", cookieJar);
 
-  const endpoint = params 
-    ? `${jenkinsUrl}/job/${jobPath}/buildWithParameters`
-    : `${jenkinsUrl}/job/${jobPath}/build`;
+    const endpoint = params
+        ? `${jenkinsUrl}/job/${jobPath}/buildWithParameters`
+        : `${jenkinsUrl}/job/${jobPath}/build`;
 
-  const url = params ? `${endpoint}?${new URLSearchParams(params)}` : endpoint;
+    const url = params
+        ? `${endpoint}?${new URLSearchParams(params)}`
+        : endpoint;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'Jenkins-Crumb': crumb,
-      'Cookie': cookieJar
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            Authorization: authHeader,
+            "Jenkins-Crumb": crumb,
+            Cookie: cookieJar
+        }
+    });
+
+    console.log("Status:", response.status);
+
+    if (response.status === 201) {
+        console.log(`Build triggered successfully! ${jobPath}`);
+        console.log("Queue location:", response.headers.get("location"));
+    } else {
+        const text = await response.text();
+        console.log("Response:", text);
     }
-  });
-
-  console.log('Status:', response.status);
-  
-  if (response.status === 201) {
-    console.log('Build triggered successfully!');
-    console.log('Queue location:', response.headers.get('location'));
-  } else {
-    const text = await response.text();
-    console.log('Response:', text);
-  }
 }
 
 // Run it
-triggerBuild().catch(err => {
-  console.error('Error:', err);
-  process.exit(1);
+triggerBuild().catch((err) => {
+    console.error("Error:", err);
+    process.exit(1);
 });
 
 // Or with parameters:
