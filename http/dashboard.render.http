@@ -1,0 +1,95 @@
+@baseUrl = http://localhost:3000
+
+### Default (today, all hosts) — HTML
+GET {{baseUrl}}/dashboard
+Accept: *
+
+###
+
+### Default (today, all hosts) — JSON
+GET {{baseUrl}}/dashboard
+Accept: application/json
+
+###
+
+### Period: yesterday
+GET {{baseUrl}}/dashboard?period=yesterday
+Accept: application/json
+
+###
+
+### Period: this-month
+GET {{baseUrl}}/dashboard?period=this-month
+Accept: application/json
+
+###
+
+### Period: last-month
+GET {{baseUrl}}/dashboard?period=last-month
+Accept: application/json
+
+###
+
+### Period: custom month (YYYY-MM)
+GET {{baseUrl}}/dashboard?period=2026-01
+Accept: application/json
+
+###
+
+### Period: custom day (YYYY-MM-DD)
+GET {{baseUrl}}/dashboard?period=2026-02-25
+Accept: application/json
+
+###
+
+### Period: custom hour (YYYY-MM-DDTHH)
+GET {{baseUrl}}/dashboard?period=2026-02-25T14
+Accept: application/json
+
+###
+
+### Filter by host (today)
+GET {{baseUrl}}/dashboard?host=example.com
+Accept: application/json
+
+###
+
+### Filter by host + period: yesterday
+GET {{baseUrl}}/dashboard?host=example.com&period=yesterday
+Accept: application/json
+
+###
+
+### Filter by host + period: this-month
+GET {{baseUrl}}/dashboard?host=example.com&period=this-month
+Accept: application/json
+
+###
+
+### Filter by host + period: last-month
+GET {{baseUrl}}/dashboard?host=example.com&period=last-month
+Accept: application/json
+
+###
+
+### Filter by host + custom month
+GET {{baseUrl}}/dashboard?host=example.com&period=2026-01
+Accept: application/json
+
+###
+
+### Filter by host + custom day
+GET {{baseUrl}}/dashboard?host=example.com&period=2026-02-25
+Accept: application/json
+
+###
+
+### Filter by host + custom hour
+GET {{baseUrl}}/dashboard?host=example.com&period=2026-02-25T14
+Accept: application/json
+
+###
+
+### Invalid period (falls back to today)
+GET {{baseUrl}}/dashboard?period=invalid-value
+Accept: application/json

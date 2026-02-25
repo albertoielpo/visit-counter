@@ -3,8 +3,6 @@ import "@fastify/view";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { APP_VERSION as version } from "../common/config";
 import { Logger } from "../common/logger";
-
-const logger = new Logger("DashboardRender");
 import { RedisServiceProvider } from "../shared/service-provider/redis.service.provider";
 import {
     BarItem,
@@ -19,6 +17,8 @@ import {
     TopPathEntry
 } from "../shared/type/redis.type";
 
+const logger = new Logger("DashboardRender");
+
 type DashboardQuery = { Querystring: { host?: string; period?: string } };
 
 @Controller("dashboard")
@@ -30,8 +30,8 @@ export class DashboardRender {
         "last-month"
     ];
     private static readonly CUSTOM_MONTH_RE = /^\d{4}-\d{2}$/;
-    private static readonly CUSTOM_DAY_RE   = /^\d{4}-\d{2}-\d{2}$/;
-    private static readonly CUSTOM_HOUR_RE  = /^\d{4}-\d{2}-\d{2}T\d{2}$/;
+    private static readonly CUSTOM_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+    private static readonly CUSTOM_HOUR_RE = /^\d{4}-\d{2}-\d{2}T\d{2}$/;
 
     constructor(
         @Inject(RedisServiceProvider)
@@ -43,21 +43,26 @@ export class DashboardRender {
     @Get("")
     async index(req: FastifyRequest<DashboardQuery>, res: FastifyReply) {
         const selectedHost = req.query.host ?? "";
-        const period  = this.parsePeriod(req.query.period);
-        const key     = this.periodKey(period);
-        const hourly  = this.periodIsHourly(period);
+        const period = this.parsePeriod(req.query.period);
+        const key = this.periodKey(period);
+        const hourly = this.periodIsHourly(period);
         const monthly = this.periodIsMonthly(period);
         const todayKey = new Date().toISOString().slice(0, 10);
 
         // ── Global data (always needed) ───────────────────────────────────────
-        const [totalReqData, methodsData, visitsToday, errorsToday, lastUpdateRaw] =
-            await Promise.all([
-                this.rsp.getTotalRequests(),
-                this.rsp.getMethods(),
-                this.rsp.getDailyVisits(todayKey),
-                this.rsp.getDailyErrors(todayKey),
-                this.rsp.getLastUpdate()
-            ]);
+        const [
+            totalReqData,
+            methodsData,
+            visitsToday,
+            errorsToday,
+            lastUpdateRaw
+        ] = await Promise.all([
+            this.rsp.getTotalRequests(),
+            this.rsp.getMethods(),
+            this.rsp.getDailyVisits(todayKey),
+            this.rsp.getDailyErrors(todayKey),
+            this.rsp.getLastUpdate()
+        ]);
 
         const hosts = Object.keys(totalReqData)
             .filter((h) => h !== "unknown")
@@ -65,10 +70,16 @@ export class DashboardRender {
 
         // ── Period data ───────────────────────────────────────────────────────
         const [visitsRes, errorsRes] = await Promise.all([
-            hourly  ? this.rsp.getHourlyVisits(key)  :
-            monthly ? this.rsp.getMonthlyVisits(key) : this.rsp.getDailyVisits(key),
-            hourly  ? this.rsp.getHourlyErrors(key)  :
-            monthly ? this.rsp.getMonthlyErrors(key) : this.rsp.getDailyErrors(key)
+            hourly
+                ? this.rsp.getHourlyVisits(key)
+                : monthly
+                  ? this.rsp.getMonthlyVisits(key)
+                  : this.rsp.getDailyVisits(key),
+            hourly
+                ? this.rsp.getHourlyErrors(key)
+                : monthly
+                  ? this.rsp.getMonthlyErrors(key)
+                  : this.rsp.getDailyErrors(key)
         ]);
 
         let totalRequests: number;
@@ -93,9 +104,11 @@ export class DashboardRender {
                 errByStatus
             ] = await Promise.all([
                 this.rsp.getUniqueIps(selectedHost),
-                hourly  ? this.rsp.getHourlyUniqueIps(key, selectedHost)  :
-                monthly ? this.rsp.getMonthlyUniqueIps(key, selectedHost) :
-                          this.rsp.getDailyUniqueIps(key, selectedHost),
+                hourly
+                    ? this.rsp.getHourlyUniqueIps(key, selectedHost)
+                    : monthly
+                      ? this.rsp.getMonthlyUniqueIps(key, selectedHost)
+                      : this.rsp.getDailyUniqueIps(key, selectedHost),
                 this.rsp.getTopPaths(selectedHost),
                 this.rsp.getStatusByHost(selectedHost),
                 this.rsp.getErrorsByStatus(selectedHost)
@@ -124,16 +137,16 @@ export class DashboardRender {
             selectedHost,
             period,
             periodLabel: this.periodLabel(period),
-            customMonth:  this.isCustomMonth(period) ? period : "",
-            customDay:    this.isCustomDay(period)   ? period : "",
-            customHour:   this.isCustomHour(period)  ? period : "",
+            customMonth: this.isCustomMonth(period) ? period : "",
+            customDay: this.isCustomDay(period) ? period : "",
+            customHour: this.isCustomHour(period) ? period : "",
             hasHost: !!selectedHost,
-            periodToday:      period === "today",
-            periodYesterday:  period === "yesterday",
-            periodThisMonth:  period === "this-month",
-            periodLastMonth:  period === "last-month",
-            periodCustom:     this.isCustomMonth(period),
-            periodCustomDay:  this.isCustomDay(period),
+            periodToday: period === "today",
+            periodYesterday: period === "yesterday",
+            periodThisMonth: period === "this-month",
+            periodLastMonth: period === "last-month",
+            periodCustom: this.isCustomMonth(period),
+            periodCustomDay: this.isCustomDay(period),
             periodCustomHour: this.isCustomHour(period),
             totalRequests: this.fmt(totalRequests),
             uniqueAllTime,
@@ -149,6 +162,15 @@ export class DashboardRender {
             version
         };
 
+        const accept = req.headers.accept
+            ? req.headers.accept.toLocaleLowerCase()
+            : "";
+        if (accept === "application/json") {
+            // return the json
+            return vm;
+        }
+
+        // render the view
         return res.view("dashboard", vm);
     }
 
