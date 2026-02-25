@@ -163,7 +163,7 @@ export class DashboardRender {
         };
 
         const accept = req.headers.accept
-            ? req.headers.accept.toLocaleLowerCase()
+            ? req.headers.accept.toLowerCase()
             : "";
         if (accept === "application/json") {
             // return the json
