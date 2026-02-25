@@ -20,6 +20,8 @@ export class AccessTailJob {
     private readonly startTimeRaw: string | undefined;
     private readonly tailOff: boolean;
     private readonly printEntries: boolean;
+    private isProcessingChange = false;
+    private hasPendingChange = false;
 
     constructor(
         @Inject(RedisServiceProvider)
@@ -78,7 +80,29 @@ export class AccessTailJob {
         logger.notice(`Replay complete (${lines}), switching to tail mode.`);
     }
 
-    private async handleChange(
+    private handleChange(
+        filePath: PathLike,
+        state: { fileSize: number; buffer: string }
+    ): void {
+        if (this.isProcessingChange) {
+            this.hasPendingChange = true;
+            return;
+        }
+        this.isProcessingChange = true;
+        this.doHandleChange(filePath, state)
+            .catch((err: Error) =>
+                logger.error(`Watcher handler error: ${err.message}`)
+            )
+            .finally(() => {
+                this.isProcessingChange = false;
+                if (this.hasPendingChange) {
+                    this.hasPendingChange = false;
+                    this.handleChange(filePath, state);
+                }
+            });
+    }
+
+    private async doHandleChange(
         filePath: PathLike,
         state: { fileSize: number; buffer: string }
     ): Promise<void> {
@@ -98,30 +122,30 @@ export class AccessTailJob {
         });
         state.fileSize = fileStat.size;
 
-        stream.on("error", (err) => {
-            logger.error(`Stream read error: ${err.message}`);
-        });
-
-        stream.on("data", (chunk) => {
-            state.buffer += chunk.toString();
-            const lines = state.buffer.split("\n");
-            state.buffer = lines.pop() as string; // keep incomplete last line
-            for (const line of lines) {
-                if (!line.trim()) continue;
-                const entry = parseLine(line);
-                if (entry) {
-                    if (this.printEntries) printEntry(entry);
-                    this.redisServiceProvider
-                        .persistEntry(entry)
-                        .catch((err: Error) =>
-                            logger.error(
-                                `Redis persist error: ${err.message}`
-                            )
-                        );
-                } else {
-                    logger.warn(`[unparsed] ${line}`);
+        await new Promise<void>((resolve, reject) => {
+            stream.on("error", reject);
+            stream.on("data", (chunk) => {
+                state.buffer += chunk.toString();
+                const lines = state.buffer.split("\n");
+                state.buffer = lines.pop() as string; // keep incomplete last line
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    const entry = parseLine(line);
+                    if (entry) {
+                        if (this.printEntries) printEntry(entry);
+                        this.redisServiceProvider
+                            .persistEntry(entry)
+                            .catch((err: Error) =>
+                                logger.error(
+                                    `Redis persist error: ${err.message}`
+                                )
+                            );
+                    } else {
+                        logger.warn(`[unparsed] ${line}`);
+                    }
                 }
-            }
+            });
+            stream.on("end", resolve);
         });
     }
 
@@ -141,9 +165,7 @@ export class AccessTailJob {
 
         const watcher = watch(filePath, (event: string) => {
             if (event !== "change") return;
-            this.handleChange(filePath, state).catch((err: Error) =>
-                logger.error(`Watcher handler error: ${err.message}`)
-            );
+            this.handleChange(filePath, state);
         });
 
         watcher.on("error", (err) => {
