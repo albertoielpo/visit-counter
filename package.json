@@ -1,6 +1,6 @@
 {
     "name": "visit-counter",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "visit counter",
     "main": "dist/app.js",
     "scripts": {
